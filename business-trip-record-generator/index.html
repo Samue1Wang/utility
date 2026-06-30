@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>差旅紀錄系統</title>
+    <!-- 引入 html2canvas 以支援將表格轉為圖片 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* --- 北歐風格基礎設定 --- */
+        :root {
+            --bg-color: #f4f6f8;
+            --container-bg: #ffffff;
+            --text-color: #333333;
+            --text-light: #666666;
+            --border-color: #e2e8f0;
+            --primary-color: #5c7cfa;
+            --primary-hover: #4263eb;
+            --danger-color: #fa5252;
+            --danger-hover: #e03131;
+            --success-color: #12b886;
+            --radius: 8px;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px 0;
+        }
+
+        /* --- RWD 容器設定 --- */
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: var(--container-bg);
+            padding: 40px 30px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        /* 手機版滿版調整 */
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+            }
+            .container {
+                border-radius: 0;
+                box-shadow: none;
+                padding: 20px 15px;
+            }
+        }
+
+        /* --- 標題區塊 --- */
+        h1 {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            color: var(--text-color);
+            margin-bottom: 15px;
+            border-left: 4px solid var(--primary-color);
+            padding-left: 10px;
+        }
+
+        section {
+            margin-bottom: 40px;
+        }
+
+        /* --- 表格區塊 --- */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            background: #fff;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        th {
+            background-color: #f8fafc;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .no-data {
+            text-align: center;
+            color: var(--text-light);
+            padding: 30px;
+        }
+
+        /* 地點箭頭樣式 */
+        .route-arrow {
+            color: var(--text-light);
+            margin: 0 6px;
+            font-size: 0.85rem;
+        }
+
+        /* --- 表單編輯區塊 --- */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-color);
+        }
+
+        input[type="date"], input[type="text"], textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            font-size: 0.95rem;
+            color: var(--text-color);
+            background-color: #fbfbfb;
+            transition: border 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background-color: #fff;
+        }
+
+        /* 地點區塊設計 */
+        .location-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: var(--radius);
+            border: 1px dashed var(--border-color);
+        }
+
+        .loc-tag {
+            display: inline-flex;
+            align-items: center;
+            background-color: #fff;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            font-size: 0.9rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .loc-tag.fixed {
+            background-color: #e9ecef;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        .loc-tag .btn-remove {
+            background: none;
+            border: none;
+            color: var(--danger-color);
+            margin-left: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .location-adder {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .location-adder select, .location-adder input {
+            flex: 1;
+        }
+
+        /* 核取方塊樣式 */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .checkbox-group input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        /* 字數統計 */
+        .char-count {
+            text-align: right;
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+
+        /* --- 按鈕樣式 --- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            border-radius: var(--radius);
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-danger {
+            background-color: transparent;
+            color: var(--danger-color);
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border: 1px solid var(--danger-color);
+        }
+
+        .btn-danger:hover {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .action-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 25px;
+        }
+
+        .btn-secondary {
+            flex: 1;
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: #f8fafc;
+            border-color: var(--text-light);
+        }
+
+        .btn-success {
+            flex: 1;
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #0ca678;
+        }
+
+        /* 隱藏的輸出圖片容器（專供轉圖用，附帶時間戳） */
+        #screenshot-target {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            background: #fff;
+            padding: 40px;
+            width: 1280px;            /* 調整為標準 16:9 的常見寬度 */
+            aspect-ratio: 16 / 9;     /* 強制設定 16:9 比例 */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; /* 讓內容與頁尾時間戳分開，均勻分布在 16:9 的空間內 */
+            box-sizing: border-box;
+            overflow: hidden; /* 防止內容溢出 */
+        }
+
+        /* 新增：專屬控制截圖明細表內的表格樣式 */
+        #screenshot-table-wrapper table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        #screenshot-table-wrapper th, 
+        #screenshot-table-wrapper td {
+            padding: 10px 12px;
+            white-space: normal;       /* 允許文字自動換行 */
+            word-break: break-all;     /* 遇到邊界強制斷行 */
+            font-size: 0.85rem;        /* 稍微縮小字體，確保能容納 100 字的備註 */
+        }
+
+        /* 針對表格各欄位進行寬度配比（總共100%），給備註多一點空間 */
+        #screenshot-table-wrapper th:nth-child(1) { width: 6%; }  /* 項次 */
+        #screenshot-table-wrapper th:nth-child(2) { width: 14%; } /* 起日 */
+        #screenshot-table-wrapper th:nth-child(3) { width: 14%; } /* 迄日 */
+        #screenshot-table-wrapper th:nth-child(4) { width: 25%; } /* 地點 */
+        #screenshot-table-wrapper th:nth-child(5) { width: 8%; }  /* 天數 */
+        #screenshot-table-wrapper th:nth-child(6) { width: 10%; } /* 船班 */
+        #screenshot-table-wrapper th:nth-child(7) { width: 23%; } /* 備註（留大一點） */
+
+        .screenshot-footer {
+            margin-top: 20px;
+            text-align: right;
+            font-size: 0.85rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- 頁面標題 -->
+        <h1>差旅紀錄管理系統</h1>
+
+        <!-- 當前已新增的差旅紀錄表格 -->
+        <section>
+            <h2>當前已新增的差旅紀錄</h2>
+            <div class="table-responsive">
+                <table id="recordTable">
+                    <thead>
+                        <tr>
+                            <th>項次</th>
+                            <th>差旅起日</th>
+                            <th>差旅迄日</th>
+                            <th>差旅地點</th>
+                            <th>天數</th>
+                            <th>夜間船班次數</th>
+                            <th>備註</th>
+                            <th>功能</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- 動態插入紀錄 -->
+                        <tr>
+                            <td colspan="8" class="no-data">目前尚無差旅紀錄</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 新增差旅紀錄的編輯區塊 -->
+        <section style="background: #fafafa; padding: 25px; border-radius: var(--radius);">
+            <h2>新增差旅紀錄</h2>
+            
+            <!-- 差旅起日 -->
+            <div class="form-group">
+                <label for="startDate">差旅起日 *</label>
+                <input type="date" id="startDate">
+            </div>
+
+            <!-- 差旅迄日 -->
+            <div class="form-group">
+                <label for="endDate">差旅迄日 *</label>
+                <input type="date" id="endDate">
+            </div>
+
+            <!-- 地點 -->
+            <div class="form-group">
+                <label>行程地點 * (頭尾固定為台灣，請於中間新增離島行程)</label>
+                <div class="location-container" id="locationWrapper">
+                    <span class="loc-tag fixed">台灣</span>
+                    <!-- 動態地點會插在這裡 -->
+                    <span class="loc-tag fixed" id="fixedEnd">台灣</span>
+                </div>
+                
+                <div class="location-adder">
+                    <select id="presetLocation">
+                        <option value="">預設地點</option>
+                        <option value="東引">東引</option>
+                        <option value="南竿">南竿</option>
+                        <option value="北竿">北竿</option>
+                        <option value="東莒">東莒</option>
+                        <option value="西莒">西莒</option>
+                    </select>
+                    <input type="text" id="customLocation" placeholder="手動輸入">
+                    <button type="button" class="btn btn-secondary" style="padding:0 15px;" id="btnAddLocation">新增地點</button>
+                </div>
+            </div>
+
+            <!-- 含有夜間船班 -->
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="hasNightBoat">
+                <label for="hasNightBoat" style="margin-bottom:0;">含有夜間船班</label>
+            </div>
+
+            <!-- 備註 -->
+            <div class="form-group">
+                <label for="memo">備註 (最多100字)</label>
+                <textarea id="memo" rows="3" maxlength="100" placeholder="請輸入備註內容..."></textarea>
+                <div class="char-count"><span id="charCount">0</span>/100</div>
+            </div>
+
+            <!-- 新增差旅紀錄按鈕 -->
+            <button type="button" class="btn btn-primary" id="btnSubmitRecord">新增差旅紀錄</button>
+        </section>
+
+        <!-- 儲存與分享按鈕 -->
+        <div class="action-group">
+            <button type="button" class="btn btn-secondary" id="btnSave">儲存為圖片</button>
+            <button type="button" class="btn btn-success" id="btnShare">分享至社群</button>
+        </div>
+    </div>
+
+    <!-- 隱藏的轉圖專用區塊 (確保產出圖片品質與包含時間戳) -->
+    <div id="screenshot-target">
+        <h2 style="text-align:center; margin-bottom:20px;">差旅紀錄明細表</h2>
+        <div id="screenshot-table-wrapper"></div>
+        <div class="screenshot-footer" id="screenshot-time"></div>
+    </div>
+
+    <script>
+        // --- 全域變數與初始化 ---
+        let travelRecords = [];
+        let intermediateLocations = []; // 儲存中間自訂的地點
+
+        // 預設日期為當天
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('startDate').value = todayStr;
+        document.getElementById('endDate').value = todayStr;
+
+        // 監聽備註字數
+        document.getElementById('memo').addEventListener('input', function() {
+            document.getElementById('charCount').textContent = this.value.length;
+        });
+
+        // --- 地點增刪邏輯 ---
+        const btnAddLocation = document.getElementById('btnAddLocation');
+        const presetLocation = document.getElementById('presetLocation');
+        const customLocation = document.getElementById('customLocation');
+        const locationWrapper = document.getElementById('locationWrapper');
+        const fixedEnd = document.getElementById('fixedEnd');
+
+        btnAddLocation.addEventListener('click', () => {
+            let locValue = "";
+            if (presetLocation.value) {
+                locValue = presetLocation.value;
+            } else if (customLocation.value.trim()) {
+                locValue = customLocation.value.trim();
+            }
+
+            if (!locValue) {
+                alert("請選擇或輸入一個有效的地方名稱。");
+                return;
+            }
+
+            // 新增至陣列
+            intermediateLocations.push(locValue);
+            renderLocationTags();
+            
+            // 清空輸入
+            presetLocation.value = "";
+            customLocation.value = "";
+        });
+
+        function renderLocationTags() {
+            // 先移除所有舊的動態 tag
+            const tags = locationWrapper.querySelectorAll('.loc-tag:not(.fixed)');
+            tags.forEach(tag => tag.remove());
+
+            // 重新插入
+            intermediateLocations.forEach((loc, index) => {
+                const tagSpan = document.createElement('span');
+                tagSpan.className = 'loc-tag';
+                tagSpan.innerHTML = `${loc}<button type="button" class="btn-remove" onclick="removeLocation(${index})">×</button>`;
+                locationWrapper.insertBefore(tagSpan, fixedEnd);
+            });
+        }
+
+        window.removeLocation = function(index) {
+            intermediateLocations.splice(index, 1);
+            renderLocationTags();
+        };
+
+        // --- 新增紀錄與檢核 ---
+        document.getElementById('btnSubmitRecord').addEventListener('click', () => {
+            const startDateVal = document.getElementById('startDate').value;
+            const endDateVal = document.getElementById('endDate').value;
+            const hasNightBoat = document.getElementById('hasNightBoat').checked;
+            const memoVal = document.getElementById('memo').value;
+
+            // 1. 必填與邏輯檢核
+            if (!startDateVal || !endDateVal) {
+                alert("錯誤：請填寫差旅起日與迄日！");
+                return;
+            }
+
+            const startD = new Date(startDateVal);
+            const endD = new Date(endDateVal);
+
+            if (endD < startD) {
+                alert("錯誤：差旅迄日不得早於差旅起日！");
+                return;
+            }
+
+            if (intermediateLocations.length === 0) {
+                alert("錯誤：行程地點除了起迄點「台灣」外，中間必須新增至少一個其他地點！");
+                return;
+            }
+
+            // 2. 計算天數 (當天算1天，隔天算2天)
+            const diffTime = Math.abs(endD - startD);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+            // 3. 組合完整行程地點
+            const fullRoute = ['台灣', ...intermediateLocations, '台灣'];
+
+            // 4. 建立物件並推入陣列
+            const record = {
+                id: Date.now(),
+                startDate: startDateVal,
+                endDate: endDateVal,
+                route: fullRoute,
+                days: diffDays,
+                nightBoatCount: hasNightBoat ? 1 : 0,
+                memo: memoVal
+            };
+
+            travelRecords.push(record);
+            
+            // 5. 排序（依據起日從小到大）
+            travelRecords.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+            // 6. 重新渲染表格
+            renderTable();
+
+            // 7. 恢復預設狀態
+            resetForm();
+        });
+
+        function resetForm() {
+            document.getElementById('startDate').value = todayStr;
+            document.getElementById('endDate').value = todayStr;
+            intermediateLocations = [];
+            renderLocationTags();
+            document.getElementById('hasNightBoat').checked = false;
+            document.getElementById('memo').value = "";
+            document.getElementById('charCount').textContent = "0";
+            document.getElementById('presetLocation').value = "";
+            document.getElementById('customLocation').value = "";
+        }
+
+        // --- 表格渲染 ---
+        function formatDateChinese(dateStr) {
+            const d = new Date(dateStr);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}年${mm}月${dd}日`;
+        }
+
+        function renderTable() {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = "";
+
+            if (travelRecords.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="8" class="no-data">目前尚無差旅紀錄</td></tr>`;
+                return;
+            }
+
+            travelRecords.forEach((rec, index) => {
+                const tr = document.createElement('tr');
+
+                // 項次
+                const tdIndex = document.createElement('td');
+                tdIndex.textContent = index + 1;
+                tr.appendChild(tdIndex);
+
+                // 起日
+                const tdStart = document.createElement('td');
+                tdStart.textContent = formatDateChinese(rec.startDate);
+                tr.appendChild(tdStart);
+
+                // 迄日
+                const tdEnd = document.createElement('td');
+                tdEnd.textContent = formatDateChinese(rec.endDate);
+                tr.appendChild(tdEnd);
+
+                // 地點排序串接
+                const tdRoute = document.createElement('td');
+                rec.route.forEach((loc, lIdx) => {
+                    tdRoute.appendChild(document.createTextNode(loc));
+                    if (lIdx < rec.route.length - 1) {
+                        const arrow = document.createElement('span');
+                        arrow.className = 'route-arrow';
+                        arrow.innerHTML = '➔';
+                        tdRoute.appendChild(arrow);
+                    }
+                });
+                tr.appendChild(tdRoute);
+
+                // 天數
+                const tdDays = document.createElement('td');
+                tdDays.textContent = rec.days + " 天";
+                tr.appendChild(tdDays);
+
+                // 船班
+                const tdBoat = document.createElement('td');
+                tdBoat.textContent = rec.nightBoatCount;
+                tr.appendChild(tdBoat);
+
+                // 備註
+                const tdMemo = document.createElement('td');
+                tdMemo.textContent = rec.memo || "-";
+                tr.appendChild(tdMemo);
+
+                // 功能(刪除)
+                const tdAction = document.createElement('td');
+                const btnDel = document.createElement('button');
+                btnDel.className = 'btn btn-danger';
+                btnDel.textContent = '刪除';
+                btnDel.onclick = () => deleteRecord(rec.id);
+                tdAction.appendChild(btnDel);
+                tr.appendChild(tdAction);
+
+                tableBody.appendChild(tr);
+            });
+        }
+
+        window.deleteRecord = function(id) {
+            travelRecords = travelRecords.filter(rec => rec.id !== id);
+            renderTable();
+        };
+
+        // 產生 6 碼隨機英數字序號
+        function generateRandomCode() {
+            const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            let result = '';
+            for (let i = 0; i < 6; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        // 取得 yyyyMMdd 格式的當前日期
+        function getFormattedDate() {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            return `${yyyy}${mm}${dd}`;
+        }
+
+        // --- 圖片輸出與分享邏輯 ---
+        function prepareScreenshot(callback) {
+            if (travelRecords.length === 0) {
+                alert("錯誤：當前無任何差旅紀錄，無法執行此操作！");
+                return;
+            }
+
+            // 複製一份表格放到隱藏的截圖專用區中
+            const originTable = document.getElementById('recordTable').cloneNode(true);
+            // 移除截圖中不需要的功能欄位 (最後一欄)
+            originTable.querySelectorAll('tr').forEach(tr => {
+                if (tr.lastElementChild) tr.removeChild(tr.lastElementChild);
+            });
+
+            const wrapper = document.getElementById('screenshot-table-wrapper');
+            wrapper.innerHTML = "";
+            wrapper.appendChild(originTable);
+
+            // 置入時間戳
+            const now = new Date();
+            document.getElementById('screenshot-time').textContent = "匯出時間：" + now.toLocaleString('zh-TW');
+
+            // 執行截圖
+            const target = document.getElementById('screenshot-target');
+            html2canvas(target, { useCORS: true, scale: 2 }).then(canvas => {
+                callback(canvas);
+            });
+        }
+
+        // 儲存按鈕
+        document.getElementById('btnSave').addEventListener('click', () => {
+            prepareScreenshot((canvas) => {
+                const link = document.createElement('a');
+                const fileName = `${getFormattedDate()}_BusinessTrip_${generateRandomCode()}.png`;
+                link.download = fileName;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        });
+
+        // 分享按鈕
+        document.getElementById('btnShare').addEventListener('click', () => {
+            prepareScreenshot((canvas) => {
+                canvas.toBlob((blob) => {
+                    const fileName = `${getFormattedDate()}_BusinessTrip_${generateRandomCode()}.png`;
+                    const file = new File([blob], fileName, { type: "image/png" });
+                    
+                    // 優先使用 Web Share API (在手機上能完美喚起 LINE/FB/原生分享選單)
+                    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                        navigator.share({
+                            files: [file],
+                            title: '我的差旅紀錄',
+                            text: '分享我的差旅紀錄明細表'
+                        }).catch(err => console.log("分享取消或失敗:", err));
+                    } else {
+                        // 瀏覽器不支援原生檔案分享時的替代方案
+                        alert("您的瀏覽器暫時不支援直接社群檔案分享。系統已為您下載圖片，您可以手動將圖片上傳至 LINE 或 FB。");
+                        const link = document.createElement('a');
+                        link.download = `差旅紀錄_${new Date().toISOString().slice(0,10)}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                    }
+                }, 'image/png');
+            });
+        });
+    </script>
+</body>
+</html>
